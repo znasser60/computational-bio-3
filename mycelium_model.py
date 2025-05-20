@@ -1,5 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import os
+from matplotlib.animation import PillowWriter
 from scipy.sparse import diags, linalg
 from matplotlib.animation import FuncAnimation
 import random
@@ -13,8 +15,6 @@ params = {
     "V_max_N": 0.8, # Maximum uptake rate for nitrogen
     "K_m_P": 0.3, # Half-saturation constant for phosphate
     "K_m_N": 0.2, # Half-saturation constant for nitrogen
-    "mu": 0.9, # Growth rate of the mycelium
-    "lambda": 0.05, # Decay rate of the mycelium
     "branch_prob": 0.07, # Probability of branching
     "adhesion": 0.1, # Adhesion strength
     "volume_constraint": 0.01, # Volume constraint for the cells
@@ -177,12 +177,18 @@ def animate_simulation(P, N, M, tips, params, num_frames=400):
     fig, ax = plt.subplots()
     im = ax.imshow(np.zeros((params["grid_size"], params["grid_size"], 3)))
 
+    # Ensure results directory exists
+    os.makedirs("results", exist_ok=True)
+
+    # To store key frames
+    snapshots = {}
+    frame1, frame2, frame3 = 5, 50, num_frames - 1
+    capture_frames = [frame1, frame2, frame3]
+
     def update(frame):
-        nonlocal P, N, M, tips
-        # Solve steady-state nutrient fields given current biomass M
+        nonlocal P, N, M, tips, snapshots
         P = steady_state_nutrient(P, M, params, nutrient_type='P')
         N = steady_state_nutrient(N, M, params, nutrient_type='N')
-
         M, tips = grow_tips(M, P, N, tips, params)
 
         rgb_image = np.ones((params["grid_size"], params["grid_size"], 3)) * [0.4, 0.26, 0.13]
@@ -198,12 +204,30 @@ def animate_simulation(P, N, M, tips, params, num_frames=400):
         for tid, (i, j, _, _) in tips.items():
             rgb_image[i, j] = [1, 1, 1]
 
+        if frame in capture_frames:
+            snapshots[frame] = rgb_image.copy()
+
         im.set_array(rgb_image)
         return [im]
 
     ani = FuncAnimation(fig, update, frames=num_frames, blit=True)
-    plt.title("Mycelium Growth Simulation")
-    plt.show()
+
+    # Save animation
+    ani.save("results/mycelium_growth.gif", writer=PillowWriter(fps=20))
+    print("Animation saved to 'results/mycelium_growth.gif'")
+
+    # Create subplot of beginning, middle, end
+    fig_snap, axs = plt.subplots(1, 3, figsize=(12, 4))
+    titles = [f'Frame {frame1}', f'Frame {frame2}', f'Frame {frame3}']
+    for ax, idx, title in zip(axs, capture_frames, titles):
+        ax.imshow(snapshots[idx])
+        ax.set_title(title)
+        ax.axis('off')
+
+    fig_snap.savefig("results/snapshots_subplot.png")
+    print("Snapshots saved to 'results/snapshots_subplot.png'")
+    plt.close(fig)
+    plt.close(fig_snap)
 
 if __name__ == "__main__":
     P, N, M, tips = initialise_grids(params["grid_size"])
