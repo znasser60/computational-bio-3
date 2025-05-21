@@ -9,18 +9,18 @@ import datetime
 
 species_params = {
     "A": {
-        "V_max_P": 0.6,  # Maximum uptake rate of phosphate for species A
-        "V_max_N": 0.7,  # Maximum uptake rate of nitrogen for species A
+        "V_max_P": 0.4,  # Maximum uptake rate of phosphate for species A
+        "V_max_N": 0.7 ,  # Maximum uptake rate of nitrogen for species A
         # "V_max_P": 0.6,  # Maximum uptake rate of phosphate for species A
         # "V_max_N": 0.8,  # Maximum uptake rate of nitrogen for species A
         "branch_prob": 0.07,  # Probability of branching for species A
-        "max_branch_depth": 5,  # Maximum branching depth for species A
+        "max_branch_depth": 7,  # Maximum branching depth for species A
     },
     "B": {
-        "V_max_P": 0.2,  # Maximum uptake rate of phosphate for species B
-        "V_max_N": 0.9,  # Maximum uptake rate of nitrogen for species B
-        # "V_max_P": 0.4,  # Maximum uptake rate of phosphate for species B
-        # "V_max_N": 0.7,  # Maximum uptake rate of nitrogen for species B
+        # "V_max_P": 0.2,  # Maximum uptake rate of phosphate for species B
+        # "V_max_N": 0.9,  # Maximum uptake rate of nitrogen for species B
+        "V_max_P": 0.7,  # Maximum uptake rate of phosphate for species B
+        "V_max_N": 0.4,  # Maximum uptake rate of nitrogen for species B
         "branch_prob": 0.1,  # Probability of branching for species B
         "max_branch_depth": 4,  # Maximum branching depth for species B
     },
@@ -37,12 +37,12 @@ params = {
     "volume_constraint": 0.01,  # Constraint on cell volume
     "chemotaxis_strength": 3.0,  # Strength of chemotaxis
     "nutrient_threshold": 0.7,  # Threshold for nutrient concentration
-    # Same x height
-    # "P_source_loc": (1/2, 1/4),  # Location of phosphate source as a fraction of grid size
-    # "N_source_loc": (1/2, 3/4),  # Location of nitrogen source as a fraction of grid size
     # Same y height
-    "P_source_loc": (1/4, 1/2),  # Location of phosphate source as a fraction of grid size
-    "N_source_loc": (3/4, 1/2),  # Location of nitrogen source as a fraction of grid size
+    "P_source_loc": (2/3, 1/4),  # Location of phosphate source as a fraction of grid size
+    "N_source_loc": (2/3, 3/4),  # Location of nitrogen source as a fraction of grid size
+    # Same x height
+    # "P_source_loc": (1/4, 1/2),  # Location of phosphate source as a fraction of grid size
+    # "N_source_loc": (3/4, 1/2),  # Location of nitrogen source as a fraction of grid size
     "P_conc": 1.0,  # Initial concentration of phosphate
     "N_conc": 1.0,  # Initial concentration of nitrogen
 }
@@ -59,10 +59,14 @@ def initialise_grids(grid_size):
     tip2_map = {}
 
     center = grid_size // 2
-    root1_grid[0, 0] = 1
-    root2_grid[0, grid_size-1] = 1 
-    tip1_map[1] = (0, 0, 0, True)
-    tip2_map[1] = (0, grid_size-1, 0, True)
+    x1 = 0
+    y1 = center-1
+    x2 = 0
+    y2 = center +1
+    root1_grid[x1, y1] = 1
+    root2_grid[x2, y2] = 1 
+    tip1_map[1] = (x1, y1, 0, True)
+    tip2_map[1] = (x2, y2, 0, True)
     # root1_grid[center, 0] = 1
     # root2_grid[center, grid_size-1] = 1 
     # tip1_map[1] = (center, 0, 0, True)
@@ -165,7 +169,7 @@ def calculate_energy(i, j, P, N, params):
     Calculate the energy for a given cell position (i, j) based on nutrient concentrations and other parameters.
     Cellular potts model energy function.
     """
-    chemotaxis = params["chemotaxis_strength"] * (P[i, j] + N[i, j])
+    chemotaxis = params["chemotaxis_strength"] * (P[i, j] + N[i, j]) # Maybe make the chemotaxis different for different species?
     adhesion = random.uniform(0, params["adhesion"])
     volume_penalty = random.uniform(0, params["volume_constraint"])
     return -chemotaxis + adhesion + volume_penalty
@@ -247,9 +251,9 @@ def animate_simulation(P, N, M1, M2, tips1, tips2, params, species_params, speci
         for i in range(params["grid_size"]):
             for j in range(params["grid_size"]):
                 if M1[i, j] > 0:
-                    rgb_image[i, j] = [0.91, 0.33, 0.11]  # orange
+                    rgb_image[i, j] = [0.0, 1.0, 0.0]  # green
                 if M2[i, j] > 0:
-                    rgb_image[i, j] = [0.25, 0.41, 0.88]  # blue
+                    rgb_image[i, j] = [0.0, 1.0, 1.0]  # cyan
 
         for tid, (i, j, _, _) in tips1.items():
             rgb_image[i, j] = [1, 1, 1]
