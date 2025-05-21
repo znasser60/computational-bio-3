@@ -5,6 +5,7 @@ from matplotlib.animation import PillowWriter
 from scipy.sparse import diags, linalg
 from matplotlib.animation import FuncAnimation
 import random
+import datetime
 
 params = {
     "grid_size": 100, # Size of the grid
@@ -20,7 +21,12 @@ params = {
     "volume_constraint": 0.01, # Volume constraint for the cells
     "chemotaxis_strength": 3.0, # Strength of chemotaxis
     "max_branch_depth": 5, # Maximum depth of branching, restricts length of mycelium
-    "nutrient_threshold": 0.7 # Threshold for nutrient concentration to stop growth
+    "nutrient_threshold": 0.7, # Threshold for nutrient concentration to stop growth
+    "grid_size": 100,  # Size of the grid
+    "P_source_loc": (2/3, 1/4),  # Relative location of phosphate source as fractions of grid size
+    "N_source_loc": (2/3, 3/4),  # Relative location of nitrogen source as fractions of grid size
+    "P_conc": 1.0,  # Concentration of phosphate
+    "N_conc": 0.75,  # Concentration of nitrogen
 }
 
 def initialise_grids(grid_size):
@@ -36,8 +42,11 @@ def initialise_grids(grid_size):
     root_grid[0, center] = 1
     tip_map[1] = (0, center, 0, True)
 
-    phosphate[grid_size // 3, grid_size // 4] = 1.0
-    nitrogen[2 * grid_size // 3, 3 * grid_size // 4] = 1.0
+    p_i, p_j = int(params["P_source_loc"][0] * grid_size), int(params["P_source_loc"][1] * grid_size)
+    n_i, n_j = int(params["N_source_loc"][0] * grid_size), int(params["N_source_loc"][1] * grid_size)
+
+    phosphate[p_i, p_j] = params["P_conc"]
+    nitrogen[n_i, n_j] = params["N_conc"]
 
     return phosphate, nitrogen, root_grid, tip_map
 
@@ -78,12 +87,12 @@ def steady_state_nutrient(C_init, biomass, params, nutrient_type='P', tol=1e-4, 
         D = params["D_P"]
         V_max = params["V_max_P"]
         K_m = params["K_m_P"]
-        source = [(grid_size // 3, grid_size // 4)]
+        source = [(int(params["P_source_loc"][0] * grid_size), int(params["P_source_loc"][1] * grid_size))]
     else:
         D = params["D_N"]
         V_max = params["V_max_N"]
         K_m = params["K_m_N"]
-        source = [(2 * grid_size // 3, 3 * grid_size // 4)]
+        source = [(int(params["N_source_loc"][0] * grid_size), int(params["N_source_loc"][1] * grid_size))]
 
     N = grid_size * grid_size
     L = build_laplacian_matrix(grid_size, D).tolil()
@@ -213,22 +222,29 @@ def animate_simulation(P, N, M, tips, params, num_frames=400):
     ani = FuncAnimation(fig, update, frames=num_frames, blit=True)
 
     # Save animation
-    ani.save("results/mycelium_growth.gif", writer=PillowWriter(fps=20))
-    print("Animation saved to 'results/mycelium_growth.gif'")
+    # path1 = "results/mycelium_growth.gif"
+    # path1 = "results/mycelium_growth2.gif" #Different nutrient spacing and concentration
+    now = datetime.datetime.now()
+    path1 = f"results/mycelium_growth_{now.strftime('%Y-%m-%d_%H-%M-%S')}_P{params['P_source_loc'][0]:.2f}_{params['P_source_loc'][1]:.2f}_{params['P_conc']:.2f}_N{params['N_source_loc'][0]:.2f}_{params['N_source_loc'][1]:.2f}_{params['N_conc']:.2f}.gif"
+    ani.save(path1, writer=PillowWriter(fps=20))
+    print(f"Animation saved to {path1}")
 
     # Create subplot of beginning, middle, end
     fig_snap, axs = plt.subplots(1, 3, figsize=(12, 4))
-    titles = [f'Frame {frame1}', f'Frame {frame2}', f'Frame {frame3}']
-    for ax, idx, title in zip(axs, capture_frames, titles):
+    fig_snap.suptitle(f"P={params['P_conc']:.2f}, N={params['N_conc']:.2f}")
+    for ax, idx in zip(axs, capture_frames):
         ax.imshow(snapshots[idx])
-        ax.set_title(title)
+        ax.set_title(f"Frame {idx}")
         ax.axis('off')
 
-    fig_snap.savefig("results/snapshots_subplot.png")
-    print("Snapshots saved to 'results/snapshots_subplot.png'")
+    # Save subplot
+    path2 = f"results/mycelium_snapshots_{now.strftime('%Y-%m-%d_%H-%M-%S')}_P{params['P_source_loc'][0]:.2f}_{params['P_source_loc'][1]:.2f}_{params['P_conc']:.2f}_N{params['N_source_loc'][0]:.2f}_{params['N_source_loc'][1]:.2f}_{params['N_conc']:.2f}.png"
+    fig_snap.savefig(path2)
+    print(f"Snapshots saved to {path2}")
     plt.close(fig)
     plt.close(fig_snap)
 
 if __name__ == "__main__":
     P, N, M, tips = initialise_grids(params["grid_size"])
     animate_simulation(P, N, M, tips, params, num_frames=400)
+
