@@ -2,6 +2,7 @@ import pickle
 import numpy as np
 import pprint
 import matplotlib.pyplot as pyplot
+import datetime
 
 params = {
     "sweeps": {
@@ -42,6 +43,11 @@ def plot(params):
         frame, biomass = matrix[:, 0], matrix[:, 1]
 
         pyplot.plot(frame, biomass)
+
+    now = datetime.datetime.now()
+    timestamp = now.strftime('%m-%d_%H-%M')
+    filename = f"results/biomass_vs_time_{timestamp}.png"
+    pyplot.savefig(filename)
 
     pyplot.show()
 
