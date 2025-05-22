@@ -9,20 +9,22 @@ import datetime
 
 species_params = {
     "A": {
-        "V_max_P": 0.4,  # Maximum uptake rate of phosphate for species A
+        "V_max_P": 0.5,  # Maximum uptake rate of phosphate for species A
         "V_max_N": 0.7 ,  # Maximum uptake rate of nitrogen for species A
         # "V_max_P": 0.6,  # Maximum uptake rate of phosphate for species A
         # "V_max_N": 0.8,  # Maximum uptake rate of nitrogen for species A
         "branch_prob": 0.07,  # Probability of branching for species A
-        "max_branch_depth": 7,  # Maximum branching depth for species A
+        "max_branch_depth": 5,  # Maximum branching depth for species A
+        "chemotaxis_strength": 3.0,  # Strength of chemotaxis
     },
     "B": {
         # "V_max_P": 0.2,  # Maximum uptake rate of phosphate for species B
         # "V_max_N": 0.9,  # Maximum uptake rate of nitrogen for species B
-        "V_max_P": 0.7,  # Maximum uptake rate of phosphate for species B
-        "V_max_N": 0.4,  # Maximum uptake rate of nitrogen for species B
+        "V_max_P": 0.5,  # Maximum uptake rate of phosphate for species B
+        "V_max_N": 0.7,  # Maximum uptake rate of nitrogen for species B
         "branch_prob": 0.1,  # Probability of branching for species B
-        "max_branch_depth": 4,  # Maximum branching depth for species B
+        "max_branch_depth": 5,  # Maximum branching depth for species B
+        "chemotaxis_strength": 3.0,  # Strength of chemotaxis
     },
 }
 
@@ -35,14 +37,13 @@ params = {
     "K_m_N": 0.2, # Half-saturation constant for nitrogen
     "adhesion": 0.1,  # Adhesion parameter for cells
     "volume_constraint": 0.01,  # Constraint on cell volume
-    "chemotaxis_strength": 3.0,  # Strength of chemotaxis
     "nutrient_threshold": 0.7,  # Threshold for nutrient concentration
-    # Same y height
-    "P_source_loc": (2/3, 1/4),  # Location of phosphate source as a fraction of grid size
-    "N_source_loc": (2/3, 3/4),  # Location of nitrogen source as a fraction of grid size
-    # Same x height
-    # "P_source_loc": (1/4, 1/2),  # Location of phosphate source as a fraction of grid size
-    # "N_source_loc": (3/4, 1/2),  # Location of nitrogen source as a fraction of grid size
+    # # Same y 
+    # "P_source_loc": (1/2, 1/4),  # Location of phosphate source as a fraction of grid size
+    # "N_source_loc": (1/2, 3/4),  # Location of nitrogen source as a fraction of grid size
+    # Same x 
+    "P_source_loc": (1/4, 1/2),  # Location of phosphate source as a fraction of grid size
+    "N_source_loc": (3/4, 1/2),  # Location of nitrogen source as a fraction of grid size
     "P_conc": 1.0,  # Initial concentration of phosphate
     "N_conc": 1.0,  # Initial concentration of nitrogen
 }
@@ -59,10 +60,10 @@ def initialise_grids(grid_size):
     tip2_map = {}
 
     center = grid_size // 2
-    x1 = 0
-    y1 = center-1
-    x2 = 0
-    y2 = center +1
+    x1 = center
+    y1 = 0
+    x2 = center
+    y2 = grid_size - 1
     root1_grid[x1, y1] = 1
     root2_grid[x2, y2] = 1 
     tip1_map[1] = (x1, y1, 0, True)
@@ -159,17 +160,60 @@ def steady_state_nutrient(C_init, biomass1, biomass2, params, species_params, sp
 
 def get_neighbors(i, j, grid_size, M2):
     """
-    Get valid neighbors for a given cell position (i, j). Moore Neighborhood with up excluded due to geotropism.
+    Get valid neighbors for a given cell position (i, j). Moore Neighborhood.
     M2 - the grid of the species that is not growing. you need to know what is occupied by it so that you don't go there.
     """
-    return [(i + di, j + dj) for di, dj in [(1, 0), (0, -1), (0, 1)] if 0 <= i + di < grid_size and 0 <= j + dj < grid_size and M2[i + di, j + dj] == 0]
+    # neighbors = []
+    # for di, dj in [(1, 0), (0, -1), (0, 1), (-1, 0)]:
+    #     ni, nj = i + di, j + dj
+    #     if 0 <= ni < grid_size and 0 <= nj < grid_size:
+    #         if M2[ni, nj] == 0:
+    #             neighbors.append((ni, nj))
+    #         else:
+    #             for di2, dj2 in [(1, 0), (0, -1), (0, 1), (-1, 0)]:
+    #                 ni2, nj2 = ni + di2, nj + dj2
+    #                 if 0 <= ni2 < grid_size and 0 <= nj2 < grid_size and M2[ni2, nj2] == 0:
+    #                     neighbors.append((ni2, nj2))
+    #                     break
 
-def calculate_energy(i, j, P, N, params):
+
+    # neighbors = [(i + di, j + dj) for di, dj in [(1, 0), (0, -1), (0, 1), (-1, 0)] if 0 <= i + di < grid_size and 0 <= j + dj < grid_size and M2[i + di, j + dj] == 0]
+    # if not neighbors:
+    #     for di, dj in [(1, 0), (0, -1), (0, 1), (-1, 0)]:
+    #         ni, nj = i + di, j + dj
+    #         if 0 <= ni < grid_size and 0 <= nj < grid_size and M2[ni, nj] == 1:
+    #             for di2, dj2 in [(1, 0), (0, -1), (0, 1), (-1, 0), (1, 1), (1, -1), (-1, 1), (-1, -1)]:
+    #                 ni2, nj2 = ni + di2, nj + dj2
+    #                 if 0 <= ni2 < grid_size and 0 <= nj2 < grid_size and M2[ni2, nj2] == 0 and (abs(di2) + abs(dj2)) > 2:
+    #                     neighbors.append((ni2, nj2))
+    #     neighbors = [(x, y) for x, y in neighbors if M2[x, y] == 0]
+
+    """
+    Get valid neighbors for a given cell position (i, j). Moore Neighborhood with up excluded due to geotropism.
+    M2 - the grid of the species that is not growing. you need to know what is occupied by it so that you don't go there.
+
+    """
+    neighbors = [(i + di, j + dj) for di, dj in [(1, 0), (0, -1), (0, 1)] if 0 <= i + di < grid_size and 0 <= j + dj < grid_size and M2[i + di, j + dj] == 0]
+    # figure out if there is M2 in the orthogonal neighbors and in the second level
+    # sweep between (i-2, j-2) and (i+2, j+2)
+
+    
+
+    for di in range(-2, 2):
+        for dj in range(-2, 2):
+            if M2[i+di, j+dj] == 1:
+                #find the closest two neighbors
+
+    return neighbors
+
+    return neighbors
+
+def calculate_energy(i, j, P, N, params, species_params, species_type):
     """
     Calculate the energy for a given cell position (i, j) based on nutrient concentrations and other parameters.
     Cellular potts model energy function.
     """
-    chemotaxis = params["chemotaxis_strength"] * (P[i, j] + N[i, j]) # Maybe make the chemotaxis different for different species?
+    chemotaxis = species_params[species_type]["chemotaxis_strength"] * (P[i, j] + N[i, j]) # Maybe make the chemotaxis different for different species?
     adhesion = random.uniform(0, params["adhesion"])
     volume_penalty = random.uniform(0, params["volume_constraint"])
     return -chemotaxis + adhesion + volume_penalty
@@ -196,10 +240,11 @@ def grow_tips(grid1, grid2, P, N, tips, params, species_params, species_type):
         if not candidates:
             continue
 
-        if is_main:
-            candidates = [pos for pos in candidates if pos[0] > i] or candidates
+        # if is_main:
+        #     candidates = [pos for pos in candidates if pos[0] > i] or candidates
+        #     candidates = [pos for pos in candidates if pos[0] == i] or candidates
 
-        scored = [(pos, calculate_energy(pos[0], pos[1], P, N, params)) for pos in candidates]
+        scored = [(pos, calculate_energy(pos[0], pos[1], P, N, params, species_params, species_type)) for pos in candidates]
         scored.sort(key=lambda x: x[1])
         best = scored[0][0]
         grid1[best] = 1
@@ -270,7 +315,7 @@ def animate_simulation(P, N, M1, M2, tips1, tips2, params, species_params, speci
 
     # Save animation
     now = datetime.datetime.now()
-    path1 = f"results/mycelium_growth_competition_{now.strftime('%m-%d_%H-%M')}_P{params['P_source_loc'][0]:.2f}_{params['P_source_loc'][1]:.2f}_{params['P_conc']:.2f}_N{params['N_source_loc'][0]:.2f}_{params['N_source_loc'][1]:.2f}_{params['N_conc']:.2f}.gif"
+    path1 = f"species_results/mycelium_growth_competition_{now.strftime('%m-%d_%H-%M')}_P{params['P_source_loc'][0]:.2f}_{params['P_source_loc'][1]:.2f}_{params['P_conc']:.2f}_N{params['N_source_loc'][0]:.2f}_{params['N_source_loc'][1]:.2f}_{params['N_conc']:.2f}.gif"
     ani.save(path1, writer=PillowWriter(fps=20))
     print(f"Animation saved to {path1}")
 
@@ -283,7 +328,7 @@ def animate_simulation(P, N, M1, M2, tips1, tips2, params, species_params, speci
         ax.axis('off')
 
     # Save subplot
-    path2 = f"results/mycelium_snapshots_competition_{now.strftime('%m-%d_%H-%M')}_P{params['P_source_loc'][0]:.2f}_{params['P_source_loc'][1]:.2f}_{params['P_conc']:.2f}_N{params['N_source_loc'][0]:.2f}_{params['N_source_loc'][1]:.2f}_{params['N_conc']:.2f}.png"
+    path2 = f"species_results/mycelium_snapshots_competition_{now.strftime('%m-%d_%H-%M')}_P{params['P_source_loc'][0]:.2f}_{params['P_source_loc'][1]:.2f}_{params['P_conc']:.2f}_N{params['N_source_loc'][0]:.2f}_{params['N_source_loc'][1]:.2f}_{params['N_conc']:.2f}.png"
     fig_snap.savefig(path2)
     print(f"Snapshots saved to {path2}")
     plt.close(fig)
