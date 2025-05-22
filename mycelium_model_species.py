@@ -11,13 +11,13 @@ species_params = {
     "A": {
         "V_max_P": 0.6,  # Maximum uptake rate of phosphate for species A
         "V_max_N": 0.8,  # Maximum uptake rate of nitrogen for species A
-        "branch_prob": 0.07,  # Probability of branching for species A
+        "branch_prob": 0.15,  # Probability of branching for species A
         "max_branch_depth": 5,  # Maximum branching depth for species A
     },
     "B": {
         "V_max_P": 0.4,  # Maximum uptake rate of phosphate for species B
         "V_max_N": 0.7,  # Maximum uptake rate of nitrogen for species B
-        "branch_prob": 0.1,  # Probability of branching for species B
+        "branch_prob": 0.2,  # Probability of branching for species B
         "max_branch_depth": 4,  # Maximum branching depth for species B
     },
 }
@@ -58,13 +58,6 @@ def initialise_grids(grid_size):
 
     phosphate[p_i, p_j] = params["P_conc"]
     nitrogen[n_i, n_j] = params["N_conc"]
-
-    # # Access species B parameters
-    # species_b_params = species_params["B"]
-    # V_max_P_B = species_b_params["V_max_P"]
-    # V_max_N_B = species_b_params["V_max_N"]
-    # branch_prob_B = species_b_params["branch_prob"]
-    # max_branch_depth_B = species_b_params["max_branch_depth"]
 
     return phosphate, nitrogen, root_grid, tip_map
 
@@ -193,15 +186,10 @@ def grow_tips(grid, P, N, tips, params, species_params, species_type):
 
     for tid, (i, j, gen, is_main) in tips.items():
         if P[i, j]>= 0.3 or N[i, j] >= 0.3:
-                if species_type == "A":
-                    branching_probability = 0.2
-                elif species_type == "B":
-                    branching_probability = 0.25
+            branching_probability = species_params[species_type]["max_branch_depth"] * 2
         else:
-            if species_type == "A":
-                branching_probability = 0.1
-            elif species_type == "B":
-                branching_probability = 0.15
+            branching_probability = species_params[species_type]["branch_prob"]
+
 
     for tid, (i, j, gen, is_main) in tips.items():
         if i == grid_size - 1:
