@@ -29,9 +29,10 @@ params = {
     "D_N": 0.6,  # Diffusion coefficient for nitrogen
     "K_m_P": 0.3, # Half-saturation constant for phosphate
     "K_m_N": 0.2, # Half-saturation constant for nitrogen
-    "adhesion": 0.1,  # Adhesion parameter for cells
+    "adhesion": 0.01,  # Adhesion parameter for cells
     "volume_constraint": 0.01,  # Constraint on cell volume
     "chemotaxis_strength": 3.0,  # Strength of chemotaxis
+    "target_volume": 5000,  # Target volume for cells
     "nutrient_threshold": 0.7,  # Threshold for nutrient concentration
     "P_source_loc": (2/3, 1/4),  # Location of phosphate source as a fraction of grid size
     "N_source_loc": (2/3, 3/4),  # Location of nitrogen source as a fraction of grid size
@@ -140,21 +141,46 @@ def steady_state_nutrient(C_init, biomass, params, species_params, species_type,
 
     return C
 
-
 def get_neighbors(i, j, grid_size):
     """
     Get valid neighbors for a given cell position (i, j). Moore Neighborhood with up excluded due to geotropism.
     """
-    return [(i + di, j + dj) for di, dj in [(1, 0), (0, -1), (0, 1)] if 0 <= i + di < grid_size and 0 <= j + dj < grid_size]
+    return [(i + di, j + dj) for di, dj in [(1, 0), (0, -1), (0, 1), (1,-1), (1,1)] if 0 <= i + di < grid_size and 0 <= j + dj < grid_size]
 
-def calculate_energy(i, j, P, N, params, species_params):
+def calculate_energy(i, j, P, N, params, grid=None):
     """
     Calculate the energy for a given cell position (i, j) based on nutrient concentrations and other parameters.
-    Cellular potts model energy function.
+    Cellular Potts model energy function with more realistic adhesion and volume terms.
+
+    - Chemotaxis: drives growth toward higher nutrients.
+    - Adhesion: uses CPM-style boundary energy (H_adhesion).
+    - Volume: penalizes deviation from a target volume (total mycelium size).
     """
+    # Chemotaxis term (minimize energy by moving toward nutrients) 
     chemotaxis = params["chemotaxis_strength"] * (P[i, j] + N[i, j])
-    adhesion = random.uniform(0, params["adhesion"])
-    volume_penalty = random.uniform(0, params["volume_constraint"])
+
+    # Adhesion: CPM-style boundary energy
+    adhesion = 0
+    if grid is not None:
+        grid_size = params.get("grid_size")
+        sigma_i = 1  # Assume new cell is mycelium (label 1)
+        tau = lambda sigma: 1 if sigma > 0 else 0  # 1: mycelium, 0: medium
+        J = lambda tau1, tau2: params["adhesion"] if tau1 != tau2 else 0  # Adhesion energy
+
+        neighbors = [(i+di, j+dj) for di, dj in [(-1,0),(1,0),(0,-1),(0,1),(-1,-1),(-1,1),(1,-1),(1,1)]
+                     if 0 <= i+di < grid_size and 0 <= j+dj < grid_size]
+        for ni, nj in neighbors:
+            sigma_j = grid[ni, nj]
+            delta = 1 if sigma_i == sigma_j else 0
+            adhesion += J(tau(sigma_i), tau(sigma_j)) * (1 - delta) * np.random.uniform(0, 1)
+
+    # Volume constraint: penalize deviation from target volume
+    volume_penalty = 0
+    if grid is not None:
+        current_volume = np.sum(grid > 0)
+        target_volume = min(current_volume+5, params.get("target_volume"))
+        volume_penalty = params["volume_constraint"] * (current_volume - target_volume) ** 2 * np.random.uniform(0, 1)
+
     return -chemotaxis + adhesion + volume_penalty
 
 def grow_tips(grid, P, N, tips, params, species_params, species_type):
@@ -164,6 +190,18 @@ def grow_tips(grid, P, N, tips, params, species_params, species_type):
     new_tips = {}
     cell_id = max(tips.keys()) + 1 if tips else 2
     grid_size = grid.shape[0]
+
+    for tid, (i, j, gen, is_main) in tips.items():
+        if P[i, j]>= 0.3 or N[i, j] >= 0.3:
+                if species_type == "A":
+                    branching_probability = 0.2
+                elif species_type == "B":
+                    branching_probability = 0.25
+        else:
+            if species_type == "A":
+                branching_probability = 0.1
+            elif species_type == "B":
+                branching_probability = 0.15
 
     for tid, (i, j, gen, is_main) in tips.items():
         if i == grid_size - 1:
@@ -179,15 +217,22 @@ def grow_tips(grid, P, N, tips, params, species_params, species_type):
         if is_main:
             candidates = [pos for pos in candidates if pos[0] > i] or candidates
 
-        scored = [(pos, calculate_energy(pos[0], pos[1], P, N, params, species_params)) for pos in candidates]
+        # Metroplis algorithm to select the best candidate
+        scored = [(pos, calculate_energy(pos[0], pos[1], P, N, params, grid)) for pos in candidates]
         scored.sort(key=lambda x: x[1])
         best = scored[0][0]
-        grid[best] = 1
-        new_tips[cell_id] = (best[0], best[1], gen, is_main)
-        cell_id += 1
 
-        if np.random.rand() < species_params[species_type]["branch_prob"] and gen < species_params[species_type]["max_branch_depth"]:
-            branch_dirs = [(-1, -1), (-1, 1), (0, -1), (0, 1)]
+        current_energy = calculate_energy(i, j, P, N, params, grid)
+        new_energy = calculate_energy(best[0], best[1], P, N, params, grid)
+        delta_E = new_energy - current_energy
+
+        if delta_E <= 0 or np.random.rand() < np.exp(-delta_E):
+            grid[best] = 1
+            new_tips[cell_id] = (best[0], best[1], gen, is_main)
+            cell_id += 1
+
+        if np.random.rand() < branching_probability and gen < species_params[species_type]["max_branch_depth"]:
+            branch_dirs = [(-1,0),(1,0),(0,-1),(0,1),(-1,-1),(-1,1),(1,-1),(1,1)]
             random.shuffle(branch_dirs)
             for di, dj in branch_dirs:
                 ni, nj = i + di, j + dj
