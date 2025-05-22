@@ -5,8 +5,9 @@ import matplotlib.pyplot as pyplot
 
 params = {
     "sweeps": {
-        "S1": "2025-05-22_18-42-25.pickle",
-        "s1_S2": None,
+        # "S1": "2025-05-22_18-42-25.pickle",
+        "S1": None,
+        "S1_S2": "05-22_19-32.pickle",
         "S1_S2_MUT": None
     }
 }
@@ -32,11 +33,11 @@ def plot(params):
     data = load_data(params['sweeps'])
     pp.pprint(data)
 
-    data_S1 = data['S1']
-    runs = len(data['runs'])
+    this_data = data['S1_S2']
+    runs = len(this_data['runs'])
 
     for ii in range(runs):
-        time = data['runs'][ii]['time']
+        time = this_data['runs'][ii]['time']
         matrix = np.matrix(time)
         frame, biomass = matrix[:, 0], matrix[:, 1]
 

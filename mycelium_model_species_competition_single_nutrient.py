@@ -12,15 +12,11 @@ species_params = {
     "A": {
         "V_max_P": 0.5,  # Maximum uptake rate of phosphate for species A
         "V_max_N": 0.7 ,  # Maximum uptake rate of nitrogen for species A
-        # "V_max_P": 0.6,  # Maximum uptake rate of phosphate for species A
-        # "V_max_N": 0.8,  # Maximum uptake rate of nitrogen for species A
         "branch_prob": 0.07,  # Probability of branching for species A
         "max_branch_depth": 5,  # Maximum branching depth for species A
         "chemotaxis_strength": 3.0,  # Strength of chemotaxis
     },
     "B": {
-        # "V_max_P": 0.2,  # Maximum uptake rate of phosphate for species B
-        # "V_max_N": 0.9,  # Maximum uptake rate of nitrogen for species B
         "V_max_P": 0.5,  # Maximum uptake rate of phosphate for species B
         "V_max_N": 0.7,  # Maximum uptake rate of nitrogen for species B
         "branch_prob": 0.1,  # Probability of branching for species B
@@ -43,11 +39,11 @@ params = {
     # "P_source_loc": (1/2, 1/4),  # Location of phosphate source as a fraction of grid size
     # "N_source_loc": (1/2, 3/4),  # Location of nitrogen source as a fraction of grid size
     # Same x 
-    "P_source_loc": (7/16, 1/2),  # Location of phosphate source as a fraction of grid size
-    "N_source_loc": (9/16, 1/2),  # Location of nitrogen source as a fraction of grid size
+    "P_source_loc": (1/2, 1/2),  # Location of phosphate source as a fraction of grid size
+    # "N_source_loc": (9/16, 1/2),  # Location of nitrogen source as a fraction of grid size
     "P_conc": 1.0,  # Initial concentration of phosphate
     "N_conc": 1.0,  # Initial concentration of nitrogen
-    "RUNS" : 5 # Number of runs for simulation
+    "RUNS" : 1 # Number of runs for simulation
 }
 
 def initialise_grids(grid_size):
@@ -55,7 +51,7 @@ def initialise_grids(grid_size):
     Initialise the nutrients and biomass of the two species on the grid.
     """
     phosphate = np.zeros((grid_size, grid_size))
-    nitrogen = np.zeros((grid_size, grid_size))
+    # nitrogen = np.zeros((grid_size, grid_size))
     root1_grid = np.zeros((grid_size, grid_size), dtype=int)
     root2_grid = np.zeros((grid_size, grid_size), dtype=int)
     tip1_map = {}
@@ -76,12 +72,12 @@ def initialise_grids(grid_size):
     # tip2_map[1] = (center, grid_size-1, 0, True)
 
     p_i, p_j = int(params["P_source_loc"][0] * grid_size), int(params["P_source_loc"][1] * grid_size)
-    n_i, n_j = int(params["N_source_loc"][0] * grid_size), int(params["N_source_loc"][1] * grid_size)
+    # n_i, n_j = int(params["N_source_loc"][0] * grid_size), int(params["N_source_loc"][1] * grid_size)
 
     phosphate[p_i, p_j] = params["P_conc"]
-    nitrogen[n_i, n_j] = params["N_conc"]
+    # nitrogen[n_i, n_j] = params["N_conc"]
 
-    return phosphate, nitrogen, root1_grid, root2_grid, tip1_map, tip2_map
+    return phosphate, root1_grid, root2_grid, tip1_map, tip2_map
 
 def build_laplacian_matrix(grid_size, D):
     """
@@ -116,18 +112,18 @@ def steady_state_nutrient(C_init, biomass1, biomass2, params, species_params, sp
     grid_size = C_init.shape[0]
     C = C_init.copy()
     
-    if nutrient_type == 'P':
-        D = params["D_P"]
-        V_max1 = species_params[species_type1]["V_max_P"]
-        V_max2 = species_params[species_type2]["V_max_P"]
-        K_m = params["K_m_P"]
-        source = [(int(params["P_source_loc"][0] * grid_size), int(params["P_source_loc"][1] * grid_size))]
-    else:
-        D = params["D_N"]
-        V_max1 = species_params[species_type1]["V_max_N"]
-        V_max2 = species_params[species_type2]["V_max_N"]
-        K_m = params["K_m_N"]
-        source = [(int(params["N_source_loc"][0] * grid_size), int(params["N_source_loc"][1] * grid_size))]
+    # if nutrient_type == 'P':
+    D = params["D_P"]
+    V_max1 = species_params[species_type1]["V_max_P"]
+    V_max2 = species_params[species_type2]["V_max_P"]
+    K_m = params["K_m_P"]
+    source = [(int(params["P_source_loc"][0] * grid_size), int(params["P_source_loc"][1] * grid_size))]
+    # else:
+        # D = params["D_N"]
+        # V_max1 = species_params[species_type1]["V_max_N"]
+        # V_max2 = species_params[species_type2]["V_max_N"]
+        # K_m = params["K_m_N"]
+        # source = [(int(params["N_source_loc"][0] * grid_size), int(params["N_source_loc"][1] * grid_size))]
 
     N = grid_size * grid_size
     L = build_laplacian_matrix(grid_size, D).tolil()
@@ -198,17 +194,17 @@ def get_neighbors(i, j, grid_size, M2, species_type):
 
     return neighbors
 
-def calculate_energy(i, j, P, N, params, species_params, species_type):
+def calculate_energy(i, j, P, params, species_params, species_type):
     """
     Calculate the energy for a given cell position (i, j) based on nutrient concentrations and other parameters.
     Cellular potts model energy function.
     """
-    chemotaxis = species_params[species_type]["chemotaxis_strength"] * (P[i, j] + N[i, j]) # Maybe make the chemotaxis different for different species?
+    chemotaxis = species_params[species_type]["chemotaxis_strength"] * (P[i, j])
     adhesion = random.uniform(0, params["adhesion"])
     volume_penalty = random.uniform(0, params["volume_constraint"])
     return -chemotaxis + adhesion + volume_penalty
 
-def grow_tips(grid1, grid2, P, N, tips, params, species_params, species_type):
+def grow_tips(grid1, grid2, P, tips, params, species_params, species_type):
     """
     Grow the tips of the mycelium based on nutrient uptake.
 
@@ -221,7 +217,7 @@ def grow_tips(grid1, grid2, P, N, tips, params, species_params, species_type):
 
     
     for tid, (i, j, gen, is_main) in tips.items():
-        if P[i, j]>= 0.3 or N[i, j] >= 0.3:
+        if P[i, j]>= 0.3: #or N[i, j] >= 0.3:
                 if species_type == "A":
                     branching_probability = 0.1
                 elif species_type == "B":
@@ -231,13 +227,11 @@ def grow_tips(grid1, grid2, P, N, tips, params, species_params, species_type):
                 branching_probability = 0.05
             elif species_type == "B":
                 branching_probability = 0.07
-        # else: 
-        #     branching_probability = 0.01
     
     for tid, (i, j, gen, is_main) in tips.items():
         if i == grid_size - 1:
             break
-        if (P[i, j] > params["nutrient_threshold"]) or (N[i, j] > params["nutrient_threshold"]):
+        if (P[i, j] > params["nutrient_threshold"]): # or (N[i, j] > params["nutrient_threshold"]):
             continue
 
         neighbors = get_neighbors(i, j, grid_size, grid2, species_type)
@@ -249,7 +243,7 @@ def grow_tips(grid1, grid2, P, N, tips, params, species_params, species_type):
         #     candidates = [pos for pos in candidates if pos[0] > i] or candidates
         #     candidates = [pos for pos in candidates if pos[0] == i] or candidates
 
-        scored = [(pos, calculate_energy(pos[0], pos[1], P, N, params, species_params, species_type)) for pos in candidates]
+        scored = [(pos, calculate_energy(pos[0], pos[1], P, params, species_params, species_type)) for pos in candidates]
         scored.sort(key=lambda x: x[1])
         best = scored[0][0]
         grid1[best] = 1
@@ -270,7 +264,7 @@ def grow_tips(grid1, grid2, P, N, tips, params, species_params, species_type):
 
     return grid1, new_tips
 
-def animate_simulation(P, N, M1, M2, tips1, tips2, params, species_params, species_type1, species_type2, image_filename, output, num_frames=400):
+def animate_simulation(P, M1, M2, tips1, tips2, params, species_params, species_type1, species_type2, image_filename, output, num_frames=400):
     #have to do everything twice, once for each species
     fig, ax = plt.subplots()
     im = ax.imshow(np.zeros((params["grid_size"], params["grid_size"], 3)))
@@ -287,16 +281,16 @@ def animate_simulation(P, N, M1, M2, tips1, tips2, params, species_params, speci
     Update the state of the two species (M1 and M2) and nutrient concentrations (P and N) for one frame of the animation.
     """
     def update(frame):
-        nonlocal P, N, M1, M2, tips1, tips2, snapshots, output
+        nonlocal P, M1, M2, tips1, tips2, snapshots, output
 
         P = steady_state_nutrient(P, M1, M2, params, species_params, species_type1, species_type2, nutrient_type='P')
-        N = steady_state_nutrient(N, M1, M2, params, species_params, species_type1, species_type2, nutrient_type='N')
-        M1, tips1 = grow_tips(M1, M2, P, N, tips1, params, species_params, species_type1)
-        M2, tips2 = grow_tips(M2, M1, P, N, tips2, params, species_params, species_type2)
+        # N = steady_state_nutrient(N, M1, M2, params, species_params, species_type1, species_type2, nutrient_type='N')
+        M1, tips1 = grow_tips(M1, M2, P, tips1, params, species_params, species_type1)
+        M2, tips2 = grow_tips(M2, M1, P, tips2, params, species_params, species_type2)
 
         rgb_image = np.ones((params["grid_size"], params["grid_size"], 3)) * [0.4, 0.26, 0.13]
         rgb_image[..., 0] += P
-        rgb_image[..., 2] += N
+        # rgb_image[..., 2] += N
         rgb_image = np.clip(rgb_image, 0, 1)
 
         for i in range(params["grid_size"]):
@@ -392,8 +386,8 @@ if __name__ == "__main__":
         # output = animate_simulation(P, N, M, tips, params, image_filename, output, num_frames=400)
         # data['runs'].append(output)
 
-        P, N, M1, M2, tips1, tips2 = initialise_grids(params["grid_size"])
-        output = animate_simulation( P, N, M1, M2, tips1, tips2, params, species_params, "A", "B", image_filename, output, num_frames=400)
+        P, M1, M2, tips1, tips2 = initialise_grids(params["grid_size"])
+        output = animate_simulation( P, M1, M2, tips1, tips2, params, species_params, "A", "B", image_filename, output, num_frames=400)
         data['runs'].append(output)
         # animate_simulation( P, N, M1, M2, tips1, tips2, params, species_params, num_frames=400)
 
