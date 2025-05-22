@@ -42,8 +42,8 @@ params = {
     # "P_source_loc": (1/2, 1/4),  # Location of phosphate source as a fraction of grid size
     # "N_source_loc": (1/2, 3/4),  # Location of nitrogen source as a fraction of grid size
     # Same x 
-    "P_source_loc": (1/4, 1/2),  # Location of phosphate source as a fraction of grid size
-    "N_source_loc": (3/4, 1/2),  # Location of nitrogen source as a fraction of grid size
+    "P_source_loc": (7/16, 1/2),  # Location of phosphate source as a fraction of grid size
+    "N_source_loc": (9/16, 1/2),  # Location of nitrogen source as a fraction of grid size
     "P_conc": 1.0,  # Initial concentration of phosphate
     "N_conc": 1.0,  # Initial concentration of nitrogen
 }
@@ -158,53 +158,41 @@ def steady_state_nutrient(C_init, biomass1, biomass2, params, species_params, sp
     return C
 
 
-def get_neighbors(i, j, grid_size, M2):
+def get_neighbors(i, j, grid_size, M2, species_type):
     """
-    Get valid neighbors for a given cell position (i, j). Moore Neighborhood.
+    Get valid neighbors for a given cell position (i, j). Moore Neighborhood without growing backwards.
     M2 - the grid of the species that is not growing. you need to know what is occupied by it so that you don't go there.
+    species_type - you need to let this function know whic species you're modeling so that it knows which direction is backwards because we dont want to grow there
     """
-    # neighbors = []
-    # for di, dj in [(1, 0), (0, -1), (0, 1), (-1, 0)]:
-    #     ni, nj = i + di, j + dj
-    #     if 0 <= ni < grid_size and 0 <= nj < grid_size:
-    #         if M2[ni, nj] == 0:
-    #             neighbors.append((ni, nj))
-    #         else:
-    #             for di2, dj2 in [(1, 0), (0, -1), (0, 1), (-1, 0)]:
-    #                 ni2, nj2 = ni + di2, nj + dj2
-    #                 if 0 <= ni2 < grid_size and 0 <= nj2 < grid_size and M2[ni2, nj2] == 0:
-    #                     neighbors.append((ni2, nj2))
-    #                     break
 
+    # Dont let the fungi grow backwards
+    if species_type == "A":
+        neighbors = [(i + di, j + dj) for di, dj in [(1, 0), (0, 1), (-1, 0)] if 0 <= i + di < grid_size and 0 <= j + dj < grid_size and M2[i + di, j + dj] == 0]
+    else:
+        neighbors = [(i + di, j + dj) for di, dj in [(1, 0), (0, -1), (-1, 0)] if 0 <= i + di < grid_size and 0 <= j + dj < grid_size and M2[i + di, j + dj] == 0]
 
-    # neighbors = [(i + di, j + dj) for di, dj in [(1, 0), (0, -1), (0, 1), (-1, 0)] if 0 <= i + di < grid_size and 0 <= j + dj < grid_size and M2[i + di, j + dj] == 0]
-    # if not neighbors:
-    #     for di, dj in [(1, 0), (0, -1), (0, 1), (-1, 0)]:
-    #         ni, nj = i + di, j + dj
-    #         if 0 <= ni < grid_size and 0 <= nj < grid_size and M2[ni, nj] == 1:
-    #             for di2, dj2 in [(1, 0), (0, -1), (0, 1), (-1, 0), (1, 1), (1, -1), (-1, 1), (-1, -1)]:
-    #                 ni2, nj2 = ni + di2, nj + dj2
-    #                 if 0 <= ni2 < grid_size and 0 <= nj2 < grid_size and M2[ni2, nj2] == 0 and (abs(di2) + abs(dj2)) > 2:
-    #                     neighbors.append((ni2, nj2))
-    #     neighbors = [(x, y) for x, y in neighbors if M2[x, y] == 0]
+    # Detect if there is a cell in the second level of von Neumann neighborhood that is occupied by the other species and get rid of the closest neighbors to that cell so that it doesn't grow in that direction
+    for di, dj in [(-2, -2), (-1, -2), (0, -2), (1, -2), (2, -2), (-2, -1), (2, -1), (-2, 0), (2, 0), (-2, 1), (2, 1), (-2, 2), (-1, 2), (0, 2), (1, 2), (2, 2)]:
+            if 0 <= i + di < grid_size and 0 <= j + dj < grid_size and M2[i + di, j + dj] == 1:
+                distances = [(np.sqrt(abs(x[0] - (i + di))**2 + abs(x[1] - (j + dj))**2), x) for x in neighbors]
+                # distances = [(abs(x[0] - (i + di)) + abs(x[1] - (j + dj)), x) for x in neighbors]
+                distances.sort(key=lambda x: x[0])
 
-    """
-    Get valid neighbors for a given cell position (i, j). Moore Neighborhood with up excluded due to geotropism.
-    M2 - the grid of the species that is not growing. you need to know what is occupied by it so that you don't go there.
+                if len(distances) > 1 and distances[0][0] == distances[1][0]:
+                    to_remove = [distances[0][1], distances[1][1]]
+                elif len(distances) > 0:
+                    to_remove = [distances[0][1]]
+                else:
+                    continue
 
-    """
-    neighbors = [(i + di, j + dj) for di, dj in [(1, 0), (0, -1), (0, 1)] if 0 <= i + di < grid_size and 0 <= j + dj < grid_size and M2[i + di, j + dj] == 0]
-    # figure out if there is M2 in the orthogonal neighbors and in the second level
-    # sweep between (i-2, j-2) and (i+2, j+2)
+                # if len(to_remove) > 0:
+                #     for n in to_remove:
+                #         neighbors.remove(n)
 
-    
-
-    for di in range(-2, 2):
-        for dj in range(-2, 2):
-            if M2[i+di, j+dj] == 1:
-                #find the closest two neighbors
-
-    return neighbors
+                if len(to_remove) > 0:
+                    neighbors = [n for n in neighbors if n not in to_remove]
+            else:    
+                continue
 
     return neighbors
 
@@ -229,13 +217,28 @@ def grow_tips(grid1, grid2, P, N, tips, params, species_params, species_type):
     cell_id = max(tips.keys()) + 1 if tips else 2
     grid_size = grid1.shape[0]
 
+    
+    for tid, (i, j, gen, is_main) in tips.items():
+        if P[i, j]>= 0.3 or N[i, j] >= 0.3:
+                if species_type == "A":
+                    branching_probability = 0.1
+                elif species_type == "B":
+                    branching_probability = 0.15
+        else:
+            if species_type == "A":
+                branching_probability = 0.05
+            elif species_type == "B":
+                branching_probability = 0.07
+        # else: 
+        #     branching_probability = 0.01
+    
     for tid, (i, j, gen, is_main) in tips.items():
         if i == grid_size - 1:
             break
         if (P[i, j] > params["nutrient_threshold"]) or (N[i, j] > params["nutrient_threshold"]):
             continue
 
-        neighbors = get_neighbors(i, j, grid_size, grid2)
+        neighbors = get_neighbors(i, j, grid_size, grid2, species_type)
         candidates = [pos for pos in neighbors if grid1[pos] == 0]
         if not candidates:
             continue
@@ -251,7 +254,8 @@ def grow_tips(grid1, grid2, P, N, tips, params, species_params, species_type):
         new_tips[cell_id] = (best[0], best[1], gen, is_main)
         cell_id += 1
 
-        if np.random.rand() < species_params[species_type]["branch_prob"] and gen < species_params[species_type]["max_branch_depth"]:
+        if np.random.rand() < branching_probability and gen < species_params[species_type]["max_branch_depth"]:
+            # if np.random.rand() < species_params[species_type]["branch_prob"] and gen < species_params[species_type]["max_branch_depth"]:
             branch_dirs = [(-1, -1), (-1, 1), (0, -1), (0, 1)]
             random.shuffle(branch_dirs)
             for di, dj in branch_dirs:
