@@ -208,20 +208,12 @@ def grow_tips(grid1, grid2, P, tips, params, species_params, species_type):
     
     for tid, (i, j, gen, is_main) in tips.items():
         if P[i, j]>= 0.3: 
-                if species_type == "A":
-                    branching_probability = 0.1
-                elif species_type == "B":
-                    branching_probability = 0.15
+            branching_probability = species_params[species_type]["branch_prob"] * 2
         else:
-            if species_type == "A":
-                branching_probability = 0.05
-            elif species_type == "B":
-                branching_probability = 0.07
+            branching_probability = species_params[species_type]["branch_prob"]
     
     for tid, (i, j, gen, is_main) in tips.items():
-        if i == grid_size - 1:
-            break
-        if (P[i, j] > params["nutrient_threshold"]):
+        if P[i, j] > params["nutrient_threshold"]:
             continue
 
         neighbors = get_neighbors(i, j, grid_size, grid2, species_type)

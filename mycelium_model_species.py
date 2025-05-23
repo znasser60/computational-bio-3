@@ -146,6 +146,12 @@ def grow_tips(grid, P, tips, params, species_params, species_type):
     grid_size = grid.shape[0]
 
     for tid, (i, j, gen, is_main) in tips.items():
+        if P[i, j]>= 0.3: 
+            branching_probability = species_params[species_type]["branch_prob"] * 2
+        else:
+            branching_probability = species_params[species_type]["branch_prob"]
+
+    for tid, (i, j, gen, is_main) in tips.items():
         if i == grid_size - 1 or P[i, j] > params["nutrient_threshold"]:
             continue
 
@@ -169,7 +175,7 @@ def grow_tips(grid, P, tips, params, species_params, species_type):
             new_tips[cell_id] = (best[0], best[1], gen, is_main)
             cell_id += 1
 
-        if np.random.rand() < species_params[species_type]["branch_prob"] and gen < species_params[species_type]["max_branch_depth"]:
+        if np.random.rand() < branching_probability and gen < species_params[species_type]["max_branch_depth"]:
             random.shuffle(neighbors)
             for ni, nj in neighbors:
                 if grid[ni, nj] == 0:
