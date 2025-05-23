@@ -6,9 +6,8 @@ import datetime
 
 params = {
     "sweeps": {
-        # "S1": "2025-05-22_18-42-25.pickle",
-        "S1": "2025-05-22_18-42-25.pickle",
-        "S1_S2": "05-22_19-32.pickle",
+        "S1": "data/05-23_13-03.pickle",
+        "S1_S2": None,
         "S1_S2_MUT": None
     }
 }
@@ -29,7 +28,7 @@ def load_data(sweeps):
     return dict
 
 def get_biomass_mean(runs):
-    times = np.empty([402, len(runs)]) # 402: amount of frames?
+    times = np.empty([402, len(runs)]) # 402: amount of frames
 
     for ii in range(len(runs)):
         time = np.ndarray.flatten(np.matrix(runs[ii]['time'])[:,1])
@@ -50,19 +49,31 @@ def plot_biomass_S1(data):
         time = data['runs'][ii]['time']
         matrix = np.matrix(time)
         frame, biomass = matrix[:, 0], matrix[:, 1]
-        plt.plot(frame, biomass / total_area, color="lightgrey")
+        plt.plot(frame, biomass / total_area, color="lightgrey", label="S1 run")
 
     plt.plot(range(len(biomass_mean)), biomass_mean / total_area, label="S1 average")
-    plt.legend()
+    #plt.legend()'
+
+    handles, labels = plt.gca().get_legend_handles_labels()
+    by_label = dict(zip(labels, handles))  # keeps only the first instance
+
+    plt.legend(by_label.values(), by_label.keys())
+    plt.title("Mycelium network growth for Single Species")
 
     plt.xlabel("t (h)")
     plt.ylabel("cells/total area")
 
+    now = datetime.datetime.now()
+    timestamp = now.strftime('%m-%d_%H-%M')
+    filename = f"results/biomass_vs_time_{timestamp}.png"
+    plt.savefig(filename)
+
     plt.show()
+    plt.close()
 
 
 def plot(params):
-    pp = pprint.PrettyPrinter(indent=4, depth=3)
+    pp = pprint.PrettyPrinter(indent=4, depth=5)
 
     data = load_data(params['sweeps'])
     #pp.pprint(data)
@@ -70,13 +81,6 @@ def plot(params):
     # Plot biomass vs time for S1
     this_data = data['S1']
     plot_biomass_S1(this_data)
-
-    now = datetime.datetime.now()
-    timestamp = now.strftime('%m-%d_%H-%M')
-    filename = f"results/biomass_vs_time_{timestamp}.png"
-    plt.savefig(filename)
-
-    #plt.close()
 
 if __name__ == "__main__":
     plot(params)
