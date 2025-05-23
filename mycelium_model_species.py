@@ -10,14 +10,14 @@ import datetime
 species_params = {
     "A": {
         "V_max_P": 0.6,  # Maximum uptake rate of phosphate for species A
-        "V_max_N": 0.8,  # Maximum uptake rate of nitrogen for species A
-        "branch_prob": 0.1,  # Probability of branching for species A
+        # "V_max_N": 0.8,  # Maximum uptake rate of nitrogen for species A
+        # "branch_prob": 0.1,  # Probability of branching for species A
         "max_branch_depth": 5,  # Maximum branching depth for species A
     },
     "B": {
         "V_max_P": 0.4,  # Maximum uptake rate of phosphate for species B
-        "V_max_N": 0.7,  # Maximum uptake rate of nitrogen for species B
-        "branch_prob": 0.15,  # Probability of branching for species B
+        # "V_max_N": 0.7,  # Maximum uptake rate of nitrogen for species B
+        # "branch_prob": 0.15,  # Probability of branching for species B
         "max_branch_depth": 4,  # Maximum branching depth for species B
     },
 }
@@ -25,15 +25,15 @@ species_params = {
 params = {
     "grid_size": 100, # Size of the grid
     "dt": 0.2, # Time step for the simulation
-    "D_P": 0.5, # Diffusion coefficient for phosphate
-    "K_m_P": 0.3, # Half-saturation constant for phosphate
+    "D_P": 0.5, # Diffusion coefficient 
+    "K_m_P": 0.3, # Half-saturation constant 
     "adhesion": 0.01, # Adhesion strength
     "volume_constraint": 0.01, # Volume constraint for the cells
     "chemotaxis_strength": 3.0, # Strength of chemotaxis
     "target_volume": 5000, # Target volume for the cells
     "nutrient_threshold": 0.7, # Threshold for nutrient concentration to stop growth
-    "P_source_loc": (0.5, 0.5), # Relative location of phosphate source as fractions of grid size
-    "P_conc": 1.0, # Initial source concentration of phosphate
+    "P_source_loc": (0.5, 0.5), # Relative location of nutrient source as fractions of grid size
+    "P_conc": 1.0, # Initial source nutrient of phosphate
 }
 
 def initialise_grids(grid_size):
