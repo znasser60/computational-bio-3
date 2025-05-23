@@ -35,7 +35,7 @@ def get_biomass_mean(runs, specied_id = 1):
 
     return [np.mean(times, axis=1), np.std(times, axis=1)]
 
-def plot_biomass(data, two_species = False, filename_ext = "", title = "Title"):
+def plot_biomass(data, two_species = False, filename_ext = "", title = "Title", S2_label = "S2"):
     filename = f"results/biomass_vs_time_{filename_ext}.png"
 
     params = data['params']
@@ -53,21 +53,21 @@ def plot_biomass(data, two_species = False, filename_ext = "", title = "Title"):
 
         if not two_species:
             frame, biomass = matrix[:, 0], matrix[:, 1]
-            plt.plot(frame, biomass / total_area, color="lightgrey", label="Run")
+            plt.plot(frame, biomass / total_area, color="lightgrey", label="S1")
         else:
             frame, biomass_S1, biomass_S2 = matrix[:, 0], matrix[:, 1], matrix[:, 3]
             plt.plot(frame, biomass_S1 / total_area, color="red", alpha=0.1, label="S1")
-            plt.plot(frame, biomass_S2 / total_area, color="blue", alpha=0.1, label="S2")
+            plt.plot(frame, biomass_S2 / total_area, color="blue", alpha=0.1, label=f'{S2_label}')
 
     # plot average biomass per species
     if not two_species:
         biomass_mean, biomass_sd = get_biomass_mean(data['runs'])
-        plt.plot(range(len(biomass_mean)), biomass_mean / total_area, label="Average")
+        plt.plot(range(len(biomass_mean)), biomass_mean / total_area, label="S1 Average")
     else:
         biomass_S1_mean, biomass_S1_sd = get_biomass_mean(data['runs'], 1)
         biomass_S2_mean, biomass_S2_sd = get_biomass_mean(data['runs'], 3)
         plt.plot(range(len(biomass_S1_mean)), biomass_S1_mean / total_area, color="red", label="S1 average")
-        plt.plot(range(len(biomass_S2_mean)), biomass_S2_mean / total_area, color="blue", label="S2 average")
+        plt.plot(range(len(biomass_S2_mean)), biomass_S2_mean / total_area, color="blue", label=f'{S2_label} average')
 
 
     # keeps only unique legend labels
@@ -78,7 +78,7 @@ def plot_biomass(data, two_species = False, filename_ext = "", title = "Title"):
     # plot labels
     plt.title(title)
     plt.xlabel("t (h)")
-    plt.ylabel("cells/total area")
+    plt.ylabel("cells/total area (1/mm^2)")
 
     plt.savefig(filename)
     plt.close()
@@ -90,9 +90,9 @@ def plot(params):
     #pp.pprint(data)
 
     # Plot biomass vs time for S1
-    plot_biomass(data['S1'], two_species = False, filename_ext = "S1", title="Growth of Mycelium network for Single Species")
-    plot_biomass(data['S1_S2'], two_species = True, filename_ext = "S1_S2", title="Growth of Mycelium network for S1 and S2 (similar)")
-    plot_biomass(data['S1_S2_MUT'], two_species = True, filename_ext = "S1_S2_MUT", title="Growth of Mycelium network for S1 and dS2")
+    plot_biomass(data['S1'], two_species = False, filename_ext = "S1", title="Growth of Mycelium network for S1")
+    plot_biomass(data['S1_S2'], two_species = True, filename_ext = "S1_S2", title="Growth of Mycelium network for S1 and S2")
+    plot_biomass(data['S1_S2_MUT'], two_species = True, filename_ext = "S1_S2_MUT", title="Growth of Mycelium network for S1 and ΔS2", S2_label = "ΔS2")
 
 
 if __name__ == "__main__":
