@@ -6,6 +6,7 @@ from scipy.sparse import diags, linalg
 from matplotlib.animation import FuncAnimation
 import random
 import datetime
+import pickle
 
 species_params = {
     "A": {
@@ -23,6 +24,8 @@ species_params = {
 }
 
 params = {
+    "runs": 5, # Number of runs for simulation
+    "num_frames": 400, # Number of frames to simulate
     "grid_size": 100, # Size of the grid
     "dt": 0.2, # Time step for the simulation
     "D_P": 0.5, # Diffusion coefficient 
@@ -186,7 +189,18 @@ def grow_tips(grid, P, tips, params, species_params, species_type):
 
     return grid, new_tips
 
-def animate_simulation(P, M, tips, params, species_params, species_type, num_frames=400):
+def pushDataExport(data_export, frame, M, P, tips):
+    # general
+    entry = [frame, np.sum(M), np.sum(P), len(tips)]
+    data_export['time'].append(entry)
+
+    # tips
+    result = [[t[0], t[1]] for t in tips.items()]
+    data_export['tips'][0].append(result)
+
+    return data_export
+
+def animate_simulation(P, M, tips, params, species_params, species_type, image_filename, data_export, num_frames=400):
     """
     Animate the simulation of mycelium growth over time.
     """
@@ -198,10 +212,14 @@ def animate_simulation(P, M, tips, params, species_params, species_type, num_fra
     capture_frames = [5, 50, num_frames - 1]
 
     def update(frame):
-        nonlocal P, M, tips, snapshots
+        nonlocal P, M, tips, snapshots, data_export
         P = steady_state_phosphate(P, M, params, species_params, species_type)
         M, tips = grow_tips(M, P, tips, params, species_params, species_type)
 
+        # collect data
+        data_export = pushDataExport(data_export, frame, M, P, tips)
+
+        # update images
         rgb_image = np.ones((params["grid_size"], params["grid_size"], 3)) * [0.4, 0.26, 0.13]
         rgb_image[..., 0] += P
         rgb_image = np.clip(rgb_image, 0, 1)
@@ -222,7 +240,7 @@ def animate_simulation(P, M, tips, params, species_params, species_type, num_fra
 
     ani = FuncAnimation(fig, update, frames=num_frames, blit=True)
     now = datetime.datetime.now()
-    filename = f"results/mycelium_growth_{now.strftime('%Y%m%d_%H%M%S')}_{species_type}.gif"
+    filename = f"results/mycelium_growth_{image_filename}_{species_type}.gif"
     ani.save(filename, writer=PillowWriter(fps=20))
     print(f"Animation saved to {filename}")
 
@@ -238,6 +256,44 @@ def animate_simulation(P, M, tips, params, species_params, species_type, num_fra
     plt.close(fig)
     plt.close(fig_snap)
 
+    return data_export
+
+def getTimestamp():
+    now = datetime.datetime.now()
+    return now.strftime('%m-%d_%H-%M')
+
 if __name__ == "__main__":
-    P, M, tips = initialise_grids(params["grid_size"])
-    animate_simulation(P, M, tips, params, species_params, "A", num_frames=400)
+    # simulation sweep data object
+    sweep_timestamp = getTimestamp()
+    data_export_folder = "data"
+    data_export_file = f"{data_export_folder}/{sweep_timestamp}"
+
+    data_export = {
+        'params': params,
+        'runs': [],
+        'timestamp': sweep_timestamp
+    }
+
+   # sweep loop
+    for ii in range(params["runs"]):
+        image_filename = f'{sweep_timestamp}-run-{ii}'
+
+        simulation_data = {
+            'tips' : [[],[]],
+            'time' : [],
+            'run_id': ii,
+            'start': getTimestamp(),
+            'image_filename': image_filename
+        }
+
+        P, M, tips = initialise_grids(params["grid_size"])
+        simulation_data = animate_simulation(P, M, tips, params, species_params, "A", image_filename, simulation_data, num_frames=params["num_frames"])
+
+        data_export['runs'].append(simulation_data)
+
+    # Ensure results directory exists
+    os.makedirs(data_export_folder, exist_ok=True)
+
+    # export
+    with open(f'{data_export_file}.pickle', 'wb') as f:
+        pickle.dump(data_export, f, pickle.HIGHEST_PROTOCOL)
