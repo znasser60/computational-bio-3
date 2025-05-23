@@ -11,13 +11,13 @@ species_params = {
     "A": {
         "V_max_P": 0.6,  # Maximum uptake rate of phosphate for species A
         # "V_max_N": 0.8,  # Maximum uptake rate of nitrogen for species A
-        # "branch_prob": 0.1,  # Probability of branching for species A
+        "branch_prob": 0.1,  # Probability of branching for species A
         "max_branch_depth": 5,  # Maximum branching depth for species A
     },
     "B": {
         "V_max_P": 0.4,  # Maximum uptake rate of phosphate for species B
         # "V_max_N": 0.7,  # Maximum uptake rate of nitrogen for species B
-        # "branch_prob": 0.15,  # Probability of branching for species B
+        "branch_prob": 0.15,  # Probability of branching for species B
         "max_branch_depth": 4,  # Maximum branching depth for species B
     },
 }
