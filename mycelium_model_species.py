@@ -10,7 +10,7 @@ import pickle
 
 species_params = {
     "A": {
-        "V_max_P": 0.6,  # Maximum uptake rate of phosphate for species A
+        "V_max_P": 0.5,  # Maximum uptake rate of phosphate for species A
         "branch_prob": 0.1,  # Probability of branching for species A
         "max_branch_depth": 5,  # Maximum branching depth for species A
     },

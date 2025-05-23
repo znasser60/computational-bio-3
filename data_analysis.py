@@ -12,6 +12,9 @@ params = {
 }
 
 def load_data(sweeps):
+    """
+    Import and store simulation data 
+    """
     dict = {}
 
     # import data for all simulation scenarios
@@ -26,16 +29,22 @@ def load_data(sweeps):
 
     return dict
 
-def get_biomass_mean(runs, specied_id = 1):
+def get_biomass_mean(runs, species_id = 1):
+    """
+    Compute the average biomass accumulation over time
+    """
     times = np.empty([402, len(runs)]) # 402: amount of frames
 
     for ii in range(len(runs)):
-        time = np.ndarray.flatten(np.matrix(runs[ii]['time'])[:,specied_id])
+        time = np.ndarray.flatten(np.matrix(runs[ii]['time'])[:,species_id])
         times[:,ii] = time
 
     return [np.mean(times, axis=1), np.std(times, axis=1)]
 
 def plot_biomass(data, two_species = False, filename_ext = "", title = "Title", S2_label = "S2"):
+    """
+    Plot biomass per species against time
+    """
     filename = f"results/biomass_vs_time_{filename_ext}.png"
 
     params = data['params']
@@ -84,16 +93,15 @@ def plot_biomass(data, two_species = False, filename_ext = "", title = "Title", 
     plt.close()
 
 def plot(params):
-    pp = pprint.PrettyPrinter(indent=4, depth=5)
-
+    """
+    Plot each biomass plot for the separate scenarios
+    """
     data = load_data(params['sweeps'])
-    #pp.pprint(data)
 
     # Plot biomass vs time for S1
     plot_biomass(data['S1'], two_species = False, filename_ext = "S1", title="Growth of Mycelium network for S1")
     plot_biomass(data['S1_S2'], two_species = True, filename_ext = "S1_S2", title="Growth of Mycelium network for S1 and S2")
     plot_biomass(data['S1_S2_MUT'], two_species = True, filename_ext = "S1_S2_MUT", title="Growth of Mycelium network for S1 and ΔS2", S2_label = "ΔS2")
-
 
 if __name__ == "__main__":
     plot(params)
