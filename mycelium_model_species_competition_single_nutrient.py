@@ -22,6 +22,8 @@ species_params = {
 }
 
 params = {
+    "runs": 5, # Number of runs for simulation
+    "num_frames": 400, # Number of frames to simulate
     "grid_size": 100,  # Size of the simulation grid
     "dt": 0.2,  # Time step for the simulation
     "D_P": 0.5,  # Diffusion coefficient for phosphate
@@ -32,8 +34,7 @@ params = {
     "chemotaxis_strength": 3.0,  # Strength of chemotaxis
     "target_volume": 5000,  # Target volume for the cells   
     "P_source_loc": (1/2, 1/2),  # Location of phosphate source as a fraction of grid size
-    "P_conc": 1.0,  # Initial concentration of phosphate
-    "RUNS" : 1 # Number of runs for simulation
+    "P_conc": 1.0  # Initial concentration of phosphate
 }
 
 def initialise_grids(grid_size):
@@ -241,7 +242,24 @@ def grow_tips(grid1, grid2, P, tips, params, species_params, species_type):
 
     return grid1, new_tips
 
-def animate_simulation(P, M1, M2, tips1, tips2, params, species_params, species_type1, species_type2, image_filename, output, num_frames=400):
+def pushDataExport(data_export, frame, M1, tips1, M2, tips2, P):
+    # general: frame / M_1 / TIPS_1 / M_2 / TIPS_2 / P
+    result = [frame, np.sum(M1), len(tips1), np.sum(M2), len(tips2), np.sum(P)]
+    data_export['time'].append(result)
+
+    # tips
+    result1 = [[t[0], t[1]] for t in tips1.items()]
+    result2 = [[t[0], t[1]] for t in tips2.items()]
+
+    data_export['tips'][0].append(result1)
+    data_export['tips'][1].append(result2)
+
+    return data_export
+
+def animate_simulation(P, M1, M2, tips1, tips2, params, species_params, species_type1, species_type2, image_filename, data_export, num_frames=400):
+    """
+    Animate the simulation of mycelium growth over time.
+    """    
     #have to do everything twice, once for each species
     fig, ax = plt.subplots()
     im = ax.imshow(np.zeros((params["grid_size"], params["grid_size"], 3)))
@@ -258,12 +276,16 @@ def animate_simulation(P, M1, M2, tips1, tips2, params, species_params, species_
     Update the state of the two species (M1 and M2) and nutrient concentrations (P and N) for one frame of the animation.
     """
     def update(frame):
-        nonlocal P, M1, M2, tips1, tips2, snapshots, output
+        nonlocal P, M1, M2, tips1, tips2, snapshots, data_export
 
         P = steady_state_nutrient(P, M1, M2, params, species_params, species_type1, species_type2, nutrient_type='P')
         M1, tips1 = grow_tips(M1, M2, P, tips1, params, species_params, species_type1)
         M2, tips2 = grow_tips(M2, M1, P, tips2, params, species_params, species_type2)
 
+        # collect data
+        data_export = pushDataExport(data_export, frame, M1, tips1, M2, tips2, P)
+
+        # create images
         rgb_image = np.ones((params["grid_size"], params["grid_size"], 3)) * [0.4, 0.26, 0.13]
         rgb_image[..., 0] += P
         rgb_image = np.clip(rgb_image, 0, 1)
@@ -280,96 +302,70 @@ def animate_simulation(P, M1, M2, tips1, tips2, params, species_params, species_
         for tid, (i, j, _, _) in tips2.items():
             rgb_image[i, j] = [1, 1, 1]
 
-        # general data: frame, biomass, tips
-        entry = [frame, np.sum(M1), len(tips1), np.sum(M2), len(tips2)]
-        output['time'].append(entry)
-
-        # get tip coordinates
-        result1 = [[t[0], t[1]] for t in tips1.items()]
-        output['tips'][0].append(result1)
-        # output['tips1'].append(result1)
-        result2 = [[t[0], t[1]] for t in tips2.items()]
-        output['tips'][1].append(result2)
-        # output['tips2'].append(result2)
-
         if frame in capture_frames:
             snapshots[frame] = rgb_image.copy()
 
         im.set_array(rgb_image)
         return [im]
 
-    ani = FuncAnimation(fig, update, frames=num_frames, blit=True)
-
     # Save animation
+    ani = FuncAnimation(fig, update, frames=num_frames, blit=True)
     now = datetime.datetime.now()
-
-    results_dir = "results"
-    data_dir = results_dir + "/data"
-    #filename = f"mycelium_growth_{now.strftime('%Y-%m-%d_%H-%M-%S')}_P{params['P_source_loc'][0]:.2f}_{params['P_source_loc'][1]:.2f}_{params['P_conc']:.2f}_N{params['N_source_loc'][0]:.2f}_{params['N_source_loc'][1]:.2f}_{params['N_conc']:.2f}"
-    img_filename = f"{results_dir}/{image_filename}"
-
-    path1 = img_filename + ".gif"
-    # path1 = f"species_results/mycelium_growth_competition_{now.strftime('%m-%d_%H-%M')}_P{params['P_source_loc'][0]:.2f}_{params['P_source_loc'][1]:.2f}_{params['P_conc']:.2f}_N{params['N_source_loc'][0]:.2f}_{params['N_source_loc'][1]:.2f}_{params['N_conc']:.2f}.gif"
-    ani.save(path1, writer=PillowWriter(fps=20))
-    print(f"Animation saved to {path1}")
+    filename = f"results/mycelium_growth_{image_filename}_{species_type1}_{species_type2}.gif"
+    ani.save(filename, writer=PillowWriter(fps=20))
+    print(f"Animation saved to {filename}")
 
     # Create subplot of beginning, middle, end
     fig_snap, axs = plt.subplots(1, 3, figsize=(12, 4))
-    fig_snap.suptitle(f"Species={species_type1}, {species_type2}, P={params['P_conc']:.2f}")
+    fig_snap.suptitle(f"Species1={species_type1}, Species2={species_type2}, P={params['P_conc']:.2f}")
     for ax, idx in zip(axs, capture_frames):
         ax.imshow(snapshots[idx])
         ax.set_title(f"Frame {idx}")
         ax.axis('off')
+    fig_snap.savefig(filename.replace(".gif", "_snapshots.png"))
+    print(f"Snapshots saved.")
 
-    # Save subplot
-    path2 = img_filename + ".png"
-    # path2 = f"species_results/mycelium_snapshots_competition_{now.strftime('%m-%d_%H-%M')}_P{params['P_source_loc'][0]:.2f}_{params['P_source_loc'][1]:.2f}_{params['P_conc']:.2f}_N{params['N_source_loc'][0]:.2f}_{params['N_source_loc'][1]:.2f}_{params['N_conc']:.2f}.png"
-    fig_snap.savefig(path2)
-    print(f"Snapshots saved to {path2}")
     plt.close(fig)
     plt.close(fig_snap)
 
-    return output
+    return data_export
+
+def getTimestamp():
+    now = datetime.datetime.now()
+    return now.strftime('%m-%d_%H-%M')
 
 if __name__ == "__main__":
     # simulation sweep data object
-    now = datetime.datetime.now()
-    sweep_timestamp = now.strftime('%m-%d_%H-%M')
-    filename_data_export = f"{sweep_timestamp}"
+    sweep_timestamp = getTimestamp()
+    data_export_folder = "data"
+    data_export_file = f"{data_export_folder}/{sweep_timestamp}"
 
-    data = {
+    data_export = {
         'params': params,
         'runs': [],
         'timestamp': sweep_timestamp
     }
 
     # sweep loop
-    for ii in range(params["RUNS"]):
-        now = datetime.datetime.now()
+    for ii in range(params["runs"]):
         image_filename = f'{sweep_timestamp}-run-{ii}'
 
-        output = {
+        simulation_data = {
             'tips' : [[],[]],
             'time' : [],
             'run_id': ii,
-            'start': now.strftime('%m-%d_%H-%M'),
+            'start': getTimestamp(),
             'image_filename': image_filename
         }
 
-        # P, N, M, tips = initialise_grids(params["grid_size"])
-        # output = animate_simulation(P, N, M, tips, params, image_filename, output, num_frames=400)
-        # data['runs'].append(output)
-
         P, M1, M2, tips1, tips2 = initialise_grids(params["grid_size"])
-        output = animate_simulation( P, M1, M2, tips1, tips2, params, species_params, "A", "B", image_filename, output, num_frames=400)
-        data['runs'].append(output)
-        # animate_simulation( P, N, M1, M2, tips1, tips2, params, species_params, num_frames=400)
+        simulation_data = animate_simulation( P, M1, M2, tips1, tips2, params, species_params, "A", "B", image_filename, simulation_data, num_frames=params["num_frames"])
 
+        data_export['runs'].append(simulation_data)
         
     # Ensure results directory exists
-    os.makedirs("results/data", exist_ok=True)
+    os.makedirs(data_export_folder, exist_ok=True)
 
     # export
-    with open(f'{filename_data_export}.pickle', 'wb') as f:
-        pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
-
+    with open(f'{data_export_file}.pickle', 'wb') as f:
+        pickle.dump(data_export, f, pickle.HIGHEST_PROTOCOL)
