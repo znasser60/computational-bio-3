@@ -14,16 +14,18 @@ species_params = {
         "V_max_N": 0.7 ,  # Maximum uptake rate of nitrogen for species A
         # "V_max_P": 0.6,  # Maximum uptake rate of phosphate for species A
         # "V_max_N": 0.8,  # Maximum uptake rate of nitrogen for species A
-        "branch_prob": 0.15,  # Probability of branching for species A
+        "branch_prob": 0.07,  # Probability of branching for species A
         "max_branch_depth": 5,  # Maximum branching depth for species A
+        "chemotaxis_strength": 3.0,  # Strength of chemotaxis
     },
     "B": {
         # "V_max_P": 0.2,  # Maximum uptake rate of phosphate for species B
         # "V_max_N": 0.9,  # Maximum uptake rate of nitrogen for species B
         "V_max_P": 0.5,  # Maximum uptake rate of phosphate for species B
         "V_max_N": 0.7,  # Maximum uptake rate of nitrogen for species B
-        "branch_prob": 0.2,  # Probability of branching for species B
+        "branch_prob": 0.1,  # Probability of branching for species B
         "max_branch_depth": 5,  # Maximum branching depth for species B
+        "chemotaxis_strength": 3.0,  # Strength of chemotaxis
     },
 }
 
@@ -34,11 +36,9 @@ params = {
     "D_N": 0.6,  # Diffusion coefficient for nitrogen
     "K_m_P": 0.3, # Half-saturation constant for phosphate
     "K_m_N": 0.2, # Half-saturation constant for nitrogen
-    "adhesion": 0.01,  # Adhesion parameter for cells
+    "adhesion": 0.1,  # Adhesion parameter for cells
     "volume_constraint": 0.01,  # Constraint on cell volume
     "nutrient_threshold": 0.7,  # Threshold for nutrient concentration
-    "chemotaxis_strength": 3.0,  # Strength of chemotaxis
-    "target_volume": 5000, # Target volume for cells
     # # Same y 
     # "P_source_loc": (1/2, 1/4),  # Location of phosphate source as a fraction of grid size
     # "N_source_loc": (1/2, 3/4),  # Location of nitrogen source as a fraction of grid size
@@ -198,97 +198,77 @@ def get_neighbors(i, j, grid_size, M2, species_type):
 
     return neighbors
 
-def calculate_energy(i, j, P, N, params, grid=None):
+def calculate_energy(i, j, P, N, params, species_params, species_type):
     """
     Calculate the energy for a given cell position (i, j) based on nutrient concentrations and other parameters.
-    Cellular Potts model energy function with more realistic adhesion and volume terms.
-
-    - Chemotaxis: drives growth toward higher nutrients.
-    - Adhesion: uses CPM-style boundary energy (H_adhesion).
-    - Volume: penalizes deviation from a target volume (total mycelium size).
+    Cellular potts model energy function.
     """
-    # Chemotaxis term (minimize energy by moving toward nutrients) 
-    chemotaxis = params["chemotaxis_strength"] * (P[i, j] + N[i, j])
-
-    # Adhesion: CPM-style boundary energy
-    adhesion = 0
-    if grid is not None:
-        grid_size = params.get("grid_size")
-        sigma_i = 1  # Assume new cell is mycelium (label 1)
-        tau = lambda sigma: 1 if sigma > 0 else 0  # 1: mycelium, 0: medium
-        J = lambda tau1, tau2: params["adhesion"] if tau1 != tau2 else 0  # Adhesion energy
-
-        neighbors = [(i+di, j+dj) for di, dj in [(-1,0),(1,0),(0,-1),(0,1),(-1,-1),(-1,1),(1,-1),(1,1)]
-                     if 0 <= i+di < grid_size and 0 <= j+dj < grid_size]
-        for ni, nj in neighbors:
-            sigma_j = grid[ni, nj]
-            delta = 1 if sigma_i == sigma_j else 0
-            adhesion += J(tau(sigma_i), tau(sigma_j)) * (1 - delta) * np.random.uniform(0, 1)
-
-    # Volume constraint: penalize deviation from target volume
-    volume_penalty = 0
-    if grid is not None:
-        current_volume = np.sum(grid > 0)
-        target_volume = min(current_volume+5, params.get("target_volume"))
-        volume_penalty = params["volume_constraint"] * (current_volume - target_volume) ** 2 * np.random.uniform(0, 1)
-
+    chemotaxis = species_params[species_type]["chemotaxis_strength"] * (P[i, j] + N[i, j]) # Maybe make the chemotaxis different for different species?
+    adhesion = random.uniform(0, params["adhesion"])
+    volume_penalty = random.uniform(0, params["volume_constraint"])
     return -chemotaxis + adhesion + volume_penalty
 
 def grow_tips(grid1, grid2, P, N, tips, params, species_params, species_type):
     """
-    Grow the tips of the mycelium based on nutrient uptake and energy minimization.
-    Applies Metropolis criterion and uses species-specific energy branching behavior.
+    Grow the tips of the mycelium based on nutrient uptake.
+
+    grid1 - the grid where the tips are growing
+    grid2 - the grid of the other species. this info needs to be known so you dont grow into a grid that's already occupied.
     """
     new_tips = {}
     cell_id = max(tips.keys()) + 1 if tips else 2
     grid_size = grid1.shape[0]
 
+    
+    for tid, (i, j, gen, is_main) in tips.items():
+        if P[i, j]>= 0.3 or N[i, j] >= 0.3:
+                if species_type == "A":
+                    branching_probability = 0.1
+                elif species_type == "B":
+                    branching_probability = 0.15
+        else:
+            if species_type == "A":
+                branching_probability = 0.05
+            elif species_type == "B":
+                branching_probability = 0.07
+        # else: 
+        #     branching_probability = 0.01
+    
     for tid, (i, j, gen, is_main) in tips.items():
         if i == grid_size - 1:
-            continue  # Stop if we hit the bottom
-
-        nutrient_level = P[i, j] + N[i, j]
-
-        # Set branching probability based on nutrient level
-        if nutrient_level >= 0.3:
-            branching_probability = species_params[species_type]["branch_prob"] * 2
-        else:
-            branching_probability = species_params[species_type]["branch_prob"]
+            break
+        if (P[i, j] > params["nutrient_threshold"]) or (N[i, j] > params["nutrient_threshold"]):
+            continue
 
         neighbors = get_neighbors(i, j, grid_size, grid2, species_type)
         candidates = [pos for pos in neighbors if grid1[pos] == 0]
         if not candidates:
             continue
 
-        if is_main:
-            candidates = [pos for pos in candidates if pos[0] > i] or candidates
+        # if is_main:
+        #     candidates = [pos for pos in candidates if pos[0] > i] or candidates
+        #     candidates = [pos for pos in candidates if pos[0] == i] or candidates
 
-        # Score candidates with energy and apply Metropolis acceptance
-        scored = [(pos, calculate_energy(pos[0], pos[1], P, N, params, grid1)) for pos in candidates]
+        scored = [(pos, calculate_energy(pos[0], pos[1], P, N, params, species_params, species_type)) for pos in candidates]
         scored.sort(key=lambda x: x[1])
         best = scored[0][0]
+        grid1[best] = 1
+        new_tips[cell_id] = (best[0], best[1], gen, is_main)
+        cell_id += 1
 
-        current_energy = calculate_energy(i, j, P, N, params, grid1)
-        new_energy = calculate_energy(best[0], best[1], P, N, params, grid1)
-        delta_E = new_energy - current_energy
-
-        if delta_E <= 0 or np.random.rand() < np.exp(-delta_E):
-            grid1[best] = 1
-            new_tips[cell_id] = (best[0], best[1], gen, is_main)
-            cell_id += 1
-
-        # Branching (with depth constraint)
         if np.random.rand() < branching_probability and gen < species_params[species_type]["max_branch_depth"]:
-            random.shuffle(neighbors)
-            for ni, nj in neighbors:
-                if grid1[ni, nj] == 0:
+            # if np.random.rand() < species_params[species_type]["branch_prob"] and gen < species_params[species_type]["max_branch_depth"]:
+            branch_dirs = [(-1, -1), (-1, 1), (0, -1), (0, 1)]
+            random.shuffle(branch_dirs)
+            for di, dj in branch_dirs:
+                ni, nj = i + di, j + dj
+                if 0 <= ni < grid_size and 0 <= nj < grid_size and grid1[ni, nj] == 0:
                     grid1[ni, nj] = 1
                     new_tips[cell_id] = (ni, nj, gen + 1, False)
                     cell_id += 1
                     break
 
     return grid1, new_tips
-
 
 def animate_simulation(P, N, M1, M2, tips1, tips2, params, species_params, species_type1, species_type2, image_filename, output, num_frames=400):
     #have to do everything twice, once for each species

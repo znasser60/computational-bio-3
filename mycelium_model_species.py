@@ -37,6 +37,10 @@ params = {
 }
 
 def initialise_grids(grid_size):
+    """
+    Initialise the nutrients and biomass on the grid. A phosphate source is placed at the center of the grid, 
+    and the root grid is initialized with a single cell at the top center.
+    """
     phosphate = np.zeros((grid_size, grid_size))
     root_grid = np.zeros((grid_size, grid_size), dtype=int)
     tip_map = {}
@@ -51,6 +55,10 @@ def initialise_grids(grid_size):
     return phosphate, root_grid, tip_map
 
 def build_laplacian_matrix(grid_size, D):
+    """
+    Build a Laplacian matrix for a 2D grid with Dirichlet boundary conditions.
+    The matrix is used to model the diffusion of nutrients across the grid.
+    """
     N = grid_size * grid_size
     main_diag = -4 * np.ones(N)
     side_diag = np.ones(N - 1)
@@ -64,6 +72,9 @@ def build_laplacian_matrix(grid_size, D):
     return D * L
 
 def steady_state_phosphate(C_init, biomass, params, species_params, species_type='A', tol=1e-4, max_iter=50):
+    """
+    Calculate the steady-state concentration of phosphate in the grid using a finite difference method.
+    """
     grid_size = C_init.shape[0]
     C = C_init.copy()
     D = params["D_P"]
@@ -96,9 +107,16 @@ def steady_state_phosphate(C_init, biomass, params, species_params, species_type
     return C
 
 def get_neighbors(i, j, grid_size):
+    """
+    Get the valid neighbors of a cell in the grid. Up directions are removed due to energy conservation.
+    """
     return [(i + di, j + dj) for di, dj in [(1, 0), (0, -1), (0, 1), (1,-1), (1,1)] if 0 <= i + di < grid_size and 0 <= j + dj < grid_size]
 
 def calculate_energy(i, j, P, params, grid=None):
+    """
+    Calculate the energy of a cell at position (i, j) based on nutrient concentration, adhesion, and volume constraints.
+    The energy function is based on the cellular Potts model.
+    """
     chemotaxis = params["chemotaxis_strength"] * P[i, j]
     adhesion = 0
     if grid is not None:
@@ -120,6 +138,9 @@ def calculate_energy(i, j, P, params, grid=None):
     return -chemotaxis + adhesion + volume_penalty
 
 def grow_tips(grid, P, tips, params, species_params, species_type):
+    """
+    Grow the tips of the mycelium based on the nutrient concentration and other parameters.
+    """
     new_tips = {}
     cell_id = max(tips.keys()) + 1 if tips else 2
     grid_size = grid.shape[0]
@@ -160,6 +181,9 @@ def grow_tips(grid, P, tips, params, species_params, species_type):
     return grid, new_tips
 
 def animate_simulation(P, M, tips, params, species_params, species_type, num_frames=400):
+    """
+    Animate the simulation of mycelium growth over time.
+    """
     fig, ax = plt.subplots()
     im = ax.imshow(np.zeros((params["grid_size"], params["grid_size"], 3)))
 
