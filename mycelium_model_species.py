@@ -11,20 +11,18 @@ import pickle
 species_params = {
     "A": {
         "V_max_P": 0.6,  # Maximum uptake rate of phosphate for species A
-        # "V_max_N": 0.8,  # Maximum uptake rate of nitrogen for species A
         "branch_prob": 0.1,  # Probability of branching for species A
         "max_branch_depth": 5,  # Maximum branching depth for species A
     },
     "B": {
         "V_max_P": 0.4,  # Maximum uptake rate of phosphate for species B
-        # "V_max_N": 0.7,  # Maximum uptake rate of nitrogen for species B
         "branch_prob": 0.15,  # Probability of branching for species B
         "max_branch_depth": 4,  # Maximum branching depth for species B
     },
 }
 
 params = {
-    "runs": 5, # Number of runs for simulation
+    "runs": 15, # Number of runs for simulation
     "num_frames": 400, # Number of frames to simulate
     "grid_size": 100, # Size of the grid
     "dt": 0.2, # Time step for the simulation
@@ -190,7 +188,7 @@ def grow_tips(grid, P, tips, params, species_params, species_type):
     return grid, new_tips
 
 def pushDataExport(data_export, frame, M, P, tips):
-    # general
+    # general: frame / M_1 / P / TIPS_1
     entry = [frame, np.sum(M), np.sum(P), len(tips)]
     data_export['time'].append(entry)
 

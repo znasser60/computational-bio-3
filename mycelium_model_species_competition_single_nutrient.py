@@ -16,13 +16,13 @@ species_params = {
     },
     "B": {
         "V_max_P": 0.7,  # Maximum uptake rate of phosphate for species B
-        "branch_prob": 0.15,  # Probability of branching for species B
+        "branch_prob": 0.1,  # Probability of branching for species B
         "max_branch_depth": 5,  # Maximum branching depth for species B
     },
 }
 
 params = {
-    "runs": 5, # Number of runs for simulation
+    "runs": 15, # Number of runs for simulation
     "num_frames": 400, # Number of frames to simulate
     "grid_size": 100,  # Size of the simulation grid
     "dt": 0.2,  # Time step for the simulation
@@ -158,10 +158,6 @@ def get_neighbors(i, j, grid_size, M2, species_type):
                     to_remove = [distances[0][1]]
                 else:
                     continue
-
-                # if len(to_remove) > 0:
-                #     for n in to_remove:
-                #         neighbors.remove(n)
 
                 if len(to_remove) > 0:
                     neighbors = [n for n in neighbors if n not in to_remove]
